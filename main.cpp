@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
     }
 
     mpu.initialize();
+    bool first_time = true;
 
     while (true) {
         mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
@@ -59,13 +60,24 @@ int main(int argc, char **argv) {
         float roll = atan2(accel_y, accel_z) * 180.0 / M_PI;
         float pitch = atan2(-accel_x, sqrt(accel_y*accel_y + accel_z*accel_z)) * 180.0 / M_PI;
         
-        // Print all values
-        printf("Accelerometer: X=%.2fg, Y=%.2fg, Z=%.2fg\n", accel_x, accel_y, accel_z);
-        printf("Gyroscope: X=%.2f°/s, Y=%.2f°/s, Z=%.2f°/s\n", gyro_x, gyro_y, gyro_z);
-        printf("Roll: %.2f°, Pitch: %.2f°\n", roll, pitch);
-        printf("--------------------------------------------------\n");
-
+        // First time through, just print the values
+        if (first_time) {
+            printf("Accelerometer (g):  X: %+6.3f  Y: %+6.3f  Z: %+6.3f\n", accel_x, accel_y, accel_z);
+            printf("Gyroscope (°/s):    X: %+7.2f  Y: %+7.2f  Z: %+7.2f\n", gyro_x, gyro_y, gyro_z);
+            printf("Orientation (°):    Roll: %+6.2f  Pitch: %+6.2f\n", roll, pitch);
+            first_time = false;
+        } else {
+            // Move up 3 lines
+            printf("\033[3A");
+            // Print new values (overwriting old ones)
+            printf("Accelerometer (g):  X: %+6.3f  Y: %+6.3f  Z: %+6.3f\n", accel_x, accel_y, accel_z);
+            printf("Gyroscope (°/s):    X: %+7.2f  Y: %+7.2f  Z: %+7.2f\n", gyro_x, gyro_y, gyro_z);
+            printf("Orientation (°):    Roll: %+6.2f  Pitch: %+6.2f\n", roll, pitch);
+        }
+        
+        // Make sure output is displayed immediately
         fflush(stdout);
+
         bcm2835_delay(100);
     }
 
