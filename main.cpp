@@ -20,7 +20,20 @@ int main(int argc, char **argv) {
     mpu.initialize();
     bool first_time = true;
 
+    float complementaryRoll = 0;
+    float complementaryPitch = 0;
+    unsigned long previousTime = 0;
+
     while (true) {
+
+        unsigned long currentTime = bcm2835_st_read() / 1000;
+        float dt = (currentTime - previousTime) / 1000.0;
+        previousTime = currentTime;
+
+        if (dt > 0.2) {
+            dt = 0.01;
+        }
+
         mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
         
         // Get the current full scale settings to calculate conversion factors
@@ -59,26 +72,38 @@ int main(int argc, char **argv) {
         // Calculate orientation angles from accelerometer
         float roll = atan2(accel_y, accel_z) * 180.0 / M_PI;
         float pitch = atan2(-accel_x, sqrt(accel_y*accel_y + accel_z*accel_z)) * 180.0 / M_PI;
+
+        float alpha = 0.98;
+
+        if (complementaryRoll == 0 && complementaryPitch == 0) {
+            complementaryRoll = roll;
+            complementaryPitch = pitch;
+        } else {
+            complementaryRoll = alpha * (complementaryRoll + gyro_x * dt) + (1 - alpha) * roll;
+            complementaryPitch = alpha * (complementaryPitch + gyro_y * dt) + (1 - alpha) * pitch;
+        }
         
         // First time through, just print the values
         if (first_time) {
             printf("Accelerometer (g):  X: %+6.3f  Y: %+6.3f  Z: %+6.3f\n", accel_x, accel_y, accel_z);
             printf("Gyroscope (°/s):    X: %+7.2f  Y: %+7.2f  Z: %+7.2f\n", gyro_x, gyro_y, gyro_z);
             printf("Orientation (°):    Roll: %+6.2f  Pitch: %+6.2f\n", roll, pitch);
+            printf("Complementary Orientation (°):    Complementary Roll: %+6.2f  Complementary Pitch: %+6.2f\n", complementaryRoll, complementaryPitch);
             first_time = false;
         } else {
             // Move up 3 lines
-            printf("\033[3A");
+            printf("\033[4A");
             // Print new values (overwriting old ones)
             printf("Accelerometer (g):  X: %+6.3f  Y: %+6.3f  Z: %+6.3f\n", accel_x, accel_y, accel_z);
             printf("Gyroscope (°/s):    X: %+7.2f  Y: %+7.2f  Z: %+7.2f\n", gyro_x, gyro_y, gyro_z);
             printf("Orientation (°):    Roll: %+6.2f  Pitch: %+6.2f\n", roll, pitch);
+            printf("Complementary Orientation (°):    Complementary Roll: %+6.2f  Complementary Pitch: %+6.2f\n", complementaryRoll, complementaryPitch);
         }
         
         // Make sure output is displayed immediately
         fflush(stdout);
 
-        bcm2835_delay(100);
+        // bcm2835_delay(100);
     }
 
     return 1;
